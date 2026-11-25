@@ -21,6 +21,7 @@ import Mathlib.Analysis.Normed.Operator.Banach
 
 ## References
 
+-- J: Beware that after the last line in references, no line-jump should be given!
 -/
 
 open Set TopologicalSpace Metric
@@ -83,7 +84,8 @@ theorem map_surjective (x : ℓ^∞(ι, X)) (hx : x ≠ 0)
         _ = 1 / 2 * ‖y‖ := by field_simp
     · simp [norm_smul, ha, div_eq_inv_mul]
   obtain ⟨C, -, hC⟩ :=
-    ContinuousLinearMap.exists_preimage_norm_le_of_approx (map 𝕜 x) (by positivity) approx
+    ContinuousLinearMap.exists_preimage_norm_le_of_approx (map 𝕜 x) (1 / 2) ‖x‖⁻¹
+      (by norm_num) (by norm_num) (by positivity) approx
   exact fun y ↦ (hC y).imp fun _ ↦ And.left
 
 /-- The Banach-Mazur theorem: If `X` is a separable Banach space, then there exists an

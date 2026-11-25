@@ -69,63 +69,58 @@ preimage yet. We will iterate this process, taking the approximate preimage of `
 leaving only `h^2 y` without preimage yet, and so on. Let `u n` be the approximate preimage of
 `h^n y`. Then `u` is a converging series, and by design the sum of the series is a preimage of
 `y`. This uses completeness of `E`. -/
-theorem exists_preimage_norm_le_of_approx [CompleteSpace E] {C : ℝ} (hC₀ : 0 ≤ C)
-    (hC : ∀ y, ∃ x, dist (f x) y ≤ 1 / 2 * ‖y‖ ∧ ‖x‖ ≤ C * ‖y‖) :
-    ∃ C > 0, ∀ y, ∃ x, f x = y ∧ ‖x‖ ≤ C * ‖y‖ := by
-  choose g hg using hC
-  let h y := y - f (g y)
-  have hle : ∀ y, ‖h y‖ ≤ 1 / 2 * ‖y‖ := by
-    intro y
-    rw [← dist_eq_norm, dist_comm]
-    exact (hg y).1
-  refine ⟨2 * C + 1, by linarith, fun y => ?_⟩
-  have hnle : ∀ n : ℕ, ‖h^[n] y‖ ≤ (1 / 2) ^ n * ‖y‖ := by
-    intro n
+theorem exists_preimage_norm_le_of_approx [CompleteSpace E] (ε C : ℝ)
+    (hε_pos : 0 < ε) (hε_lt : ε < 1) (hC_nonneg : 0 ≤ C)
+    (happrox : ∀ y : F, ∃ x : E, dist (f x) y ≤ ε * ‖y‖ ∧ ‖x‖ ≤ C * ‖y‖) :
+    ∀ y : F, ∃ x : E, f x = y ∧ ‖x‖ ≤ C / (1 - ε) * ‖y‖ := by
+  choose g hg_dist hg_norm using happrox
+  let h : F → F := fun z ↦ z - f (g z)
+  have hr_iter_norm (z : F) (n : ℕ) : ‖h^[n] z‖ ≤ ε ^ n * ‖z‖ := by
     induction n with
-    | zero => simp only [one_div, one_mul, iterate_zero_apply, pow_zero, le_rfl]
+    | zero => simp
     | succ n IH =>
-      rw [iterate_succ']
-      apply le_trans (hle _) _
-      rw [pow_succ', mul_assoc]
-      gcongr
-  let u n := g (h^[n] y)
-  have ule : ∀ n, ‖u n‖ ≤ (1 / 2) ^ n * (C * ‖y‖) := fun n ↦ by
-    apply le_trans (hg _).2
+      calc
+        ‖h^[n + 1] z‖ = ‖h (h^[n] z)‖ := by rw [Function.iterate_succ_apply']
+        _ ≤ ε * ‖h^[n] z‖ := by simpa only [h, dist_eq_norm'] using hg_dist (h^[n] z)
+        _ ≤ ε * (ε ^ n * ‖z‖) := mul_le_mul_of_nonneg_left IH hε_pos.le
+        _ = ε ^ (n + 1) * ‖z‖ := by rw [pow_succ', mul_assoc]
+  intro y
+  let u : ℕ → E := fun n ↦ g (h^[n] y)
+  have ule (n : ℕ) : ‖u n‖ ≤ C * (ε ^ n * ‖y‖) := by
     calc
-      C * ‖h^[n] y‖ ≤ C * ((1 / 2) ^ n * ‖y‖) := by gcongr; exact hnle n
-      _ = (1 / 2) ^ n * (C * ‖y‖) := by ring
-  have sNu : Summable fun n => ‖u n‖ := by
-    refine .of_nonneg_of_le (fun n => norm_nonneg _) ule ?_
-    exact Summable.mul_right _ (summable_geometric_of_lt_one (by simp) (by norm_num))
+      ‖u n‖ ≤ C * ‖h^[n] y‖ := hg_norm (h^[n] y)
+      _ ≤ C * (ε ^ n * ‖y‖) := mul_le_mul_of_nonneg_left (hr_iter_norm y n) hC_nonneg
+  have sNu : Summable (fun n ↦ ‖u n‖) :=
+    .of_nonneg_of_le (fun n ↦ norm_nonneg (u n)) ule
+      (((summable_geometric_of_lt_one hε_pos.le hε_lt).mul_right ‖y‖).mul_left C)
   have su : Summable u := sNu.of_norm
-  let x := tsum u
-  have x_ineq : ‖x‖ ≤ (2 * C + 1) * ‖y‖ :=
-    calc
-      ‖x‖ ≤ ∑' n, ‖u n‖ := norm_tsum_le_tsum_norm sNu
-      _ ≤ ∑' n, (1 / 2) ^ n * (C * ‖y‖) :=
-        sNu.tsum_le_tsum ule <| Summable.mul_right _ summable_geometric_two
-      _ = (∑' n, (1 / 2) ^ n) * (C * ‖y‖) := tsum_mul_right
-      _ = 2 * C * ‖y‖ := by rw [tsum_geometric_two, mul_assoc]
-      _ ≤ 2 * C * ‖y‖ + ‖y‖ := le_add_of_nonneg_right (norm_nonneg y)
-      _ = (2 * C + 1) * ‖y‖ := by ring
-  have fsumeq : ∀ n : ℕ, f (∑ i ∈ Finset.range n, u i) = y - h^[n] y := by
-    intro n
+  let x : E := ∑' n, u n
+  have fsumeq (n : ℕ) : f (∑ k ∈ Finset.range n, u k) = y - h^[n] y := by
     induction n with
-    | zero => simp [f.map_zero]
-    | succ n IH => rw [sum_range_succ, f.map_add, IH, iterate_succ_apply', sub_add]
-  have : Tendsto (fun n => ∑ i ∈ Finset.range n, u i) atTop (𝓝 x) := su.hasSum.tendsto_sum_nat
-  have L₁ : Tendsto (fun n => f (∑ i ∈ Finset.range n, u i)) atTop (𝓝 (f x)) :=
-    (f.continuous.tendsto _).comp this
+    | zero => simp
+    | succ n IH => rw [Finset.sum_range_succ, f.map_add, IH, Function.iterate_succ_apply', sub_add]
+  have hpartial_tendsto : Tendsto (fun n ↦ ∑ k ∈ Finset.range n, u k) atTop (𝓝 x) :=
+    su.hasSum.tendsto_sum_nat
+  have L₁ : Tendsto (fun n ↦ f (∑ i ∈ Finset.range n, u i)) atTop (𝓝 (f x)) :=
+    (f.continuous.tendsto x).comp hpartial_tendsto
   simp only [fsumeq] at L₁
-  have L₂ : Tendsto (fun n => y - h^[n] y) atTop (𝓝 (y - 0)) := by
+  have L₂ : Tendsto (fun n ↦ y - h^[n] y) atTop (𝓝 (y - 0)) := by
     refine tendsto_const_nhds.sub ?_
     rw [tendsto_iff_norm_sub_tendsto_zero]
     simp only [sub_zero]
-    refine squeeze_zero (fun _ => norm_nonneg _) hnle ?_
-    rw [← zero_mul ‖y‖]
-    refine (_root_.tendsto_pow_atTop_nhds_zero_of_lt_one ?_ ?_).mul tendsto_const_nhds <;> norm_num
-  have feq : f x = y - 0 := tendsto_nhds_unique L₁ L₂
-  rw [sub_zero] at feq
+    refine squeeze_zero (fun n ↦ norm_nonneg (h^[n] y)) (hr_iter_norm y) ?_
+    simpa using (tendsto_pow_atTop_nhds_zero_of_lt_one hε_pos.le hε_lt).mul_const ‖y‖
+  have feq : f x = y := by simpa using tendsto_nhds_unique L₁ L₂
+  have x_ineq : ‖x‖ ≤ C / (1 - ε) * ‖y‖ := by
+    calc
+      ‖x‖ ≤ ∑' n, ‖u n‖ := norm_tsum_le_tsum_norm sNu
+      _ ≤ ∑' n, C * (ε ^ n * ‖y‖) :=
+        sNu.tsum_le_tsum ule
+          (((summable_geometric_of_lt_one hε_pos.le hε_lt).mul_right ‖y‖).mul_left C)
+      _ = C * ((1 - ε)⁻¹ * ‖y‖) := by
+        rw [_root_.tsum_mul_left, _root_.tsum_mul_right,
+          tsum_geometric_of_lt_one hε_pos.le hε_lt]
+      _ = C / (1 - ε) * ‖y‖ := by rw [div_eq_mul_inv, mul_assoc]
   exact ⟨x, feq, x_ineq⟩
 
 end ContinuousLinearMap
@@ -223,6 +218,22 @@ theorem exists_approx_preimage_norm_le (surj : Surjective f) :
         _ = (ε / 2)⁻¹ * ‖c‖ * 2 * ↑n * ‖y‖ := by ring
     exact ⟨σ' d⁻¹ • x, J, K⟩
 
+omit [RingHomIsometric σ] [CompleteSpace F] in
+/-- Some doc that J should write. -/
+theorem approx_preimage_constant_pos [Nontrivial F] {C : ℝ}
+    (hC_nonneg : 0 ≤ C) (happrox : ∀ y : F, ∃ x : E, dist (f x) y ≤ 1 / 2 * ‖y‖ ∧ ‖x‖ ≤ C * ‖y‖) :
+    0 < C := by
+  by_contra! hC
+  have hC_zero : C = 0 := le_antisymm hC hC_nonneg
+  have hy_zero (y : F) : y = 0 := by
+    obtain ⟨x, hx_dist, hx_norm⟩ := happrox y
+    have hx_zero : x = 0 := by simpa [hC_zero] using hx_norm
+    have hy_norm : ‖y‖ ≤ 1 / 2 * ‖y‖ := by simpa [hx_zero] using hx_dist
+    have hy_norm_zero : ‖y‖ = 0 := by nlinarith [norm_nonneg y]
+    exact norm_eq_zero.mp hy_norm_zero
+  have hF : Subsingleton F := _root_.subsingleton_of_forall_eq 0 hy_zero
+  exact not_subsingleton F hF
+
 variable [CompleteSpace E]
 
 section
@@ -233,7 +244,15 @@ any point has a preimage with controlled norm. -/
 theorem exists_preimage_norm_le (surj : Surjective f) :
     ∃ C > 0, ∀ y, ∃ x, f x = y ∧ ‖x‖ ≤ C * ‖y‖ := by
   obtain ⟨C, hC₀, hC⟩ := exists_approx_preimage_norm_le f surj
-  exact exists_preimage_norm_le_of_approx f hC₀ hC
+  rcases subsingleton_or_nontrivial F with hF | hF
+  · exact ⟨1, zero_lt_one, fun y ↦ ⟨0, hF.elim _ _, by simp⟩⟩
+  · let : Nontrivial F := hF
+    obtain ⟨C, hC₀, hC⟩ := exists_approx_preimage_norm_le f surj
+    have hC_pos : 0 < C := approx_preimage_constant_pos f hC₀ hC
+    refine ⟨2 * C, by positivity, ?_⟩
+    have h := exists_preimage_norm_le_of_approx f (1 / 2) C (by norm_num) (by norm_num) hC₀ hC
+    norm_num at h
+    simpa [mul_comm] using h
 
 /-- The Banach open mapping theorem: a surjective bounded linear map between Banach spaces is
 open. -/
