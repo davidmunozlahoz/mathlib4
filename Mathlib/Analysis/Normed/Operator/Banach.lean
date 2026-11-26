@@ -149,7 +149,7 @@ variable [CompleteSpace F]
 namespace ContinuousLinearMap
 
 include σ' in
-/-- ToDo: we also have to update this!
+/--
 First step of the proof of the Banach open mapping theorem (using completeness of `F`):
 by Baire's theorem, there exists a ball in `E` whose image closure has nonempty interior.
 Rescaling everything, it follows that any `y ∈ F` is arbitrarily well approached by
@@ -157,7 +157,7 @@ images of elements of norm at most `C * ‖y‖`.
 For further use, we will only need such an element whose image
 is within distance `‖y‖/2` of `y`, to apply an iterative process. -/
 theorem exists_approx_preimage_norm_le (surj : Surjective f) :
-    ∃ C ≥ 0, ∀ y, ∃ x, dist (f x) y ≤ 1 / 2 * ‖y‖ ∧ ‖x‖ ≤ C * ‖y‖ := by
+    ∃ C > 0, ∀ y, ∃ x, dist (f x) y ≤ 1 / 2 * ‖y‖ ∧ ‖x‖ ≤ C * ‖y‖ := by
   have A : ⋃ n : ℕ, closure (f '' ball 0 n) = Set.univ := by
     refine Subset.antisymm (subset_univ _) fun y _ => ?_
     rcases surj y with ⟨x, hx⟩
@@ -170,7 +170,7 @@ theorem exists_approx_preimage_norm_le (surj : Surjective f) :
   simp only [mem_interior_iff_mem_nhds, Metric.mem_nhds_iff] at this
   rcases this with ⟨n, a, ε, ⟨εpos, H⟩⟩
   rcases NormedField.exists_one_lt_norm 𝕜 with ⟨c, hc⟩
-  refine ⟨(ε / 2)⁻¹ * ‖c‖ * 2 * n, by positivity, fun y => ?_⟩
+  refine ⟨(ε / 2)⁻¹ * ‖c‖ * 2 * (n + 1), by positivity, fun y => ?_⟩
   rcases eq_or_ne y 0 with rfl | hy
   · simp
   · have hc' : 1 < ‖σ c‖ := by simp only [RingHomIsometric.norm_map, hc]
@@ -209,7 +209,7 @@ theorem exists_approx_preimage_norm_le (surj : Surjective f) :
         _ ≤ ‖d‖⁻¹ * (2 * δ) := by gcongr
         _ = 1 / 2 * ‖y‖ := by simp [δ, field]; norm_num
     rw [← dist_eq_norm] at J
-    have K : ‖σ' d⁻¹ • x‖ ≤ (ε / 2)⁻¹ * ‖c‖ * 2 * ↑n * ‖y‖ :=
+    have K : ‖σ' d⁻¹ • x‖ ≤ (ε / 2)⁻¹ * ‖c‖ * 2 * (↑n + 1) * ‖y‖ :=
       calc
         ‖σ' d⁻¹ • x‖ = ‖d‖⁻¹ * ‖x₁ - x₂‖ := by rw [norm_smul, RingHomIsometric.norm_map, norm_inv]
         _ ≤ (ε / 2)⁻¹ * ‖c‖ * ‖y‖ * (n + n) := by
@@ -217,23 +217,8 @@ theorem exists_approx_preimage_norm_le (surj : Surjective f) :
           · simpa using dinv
           · exact le_trans (norm_sub_le _ _) (by gcongr)
         _ = (ε / 2)⁻¹ * ‖c‖ * 2 * ↑n * ‖y‖ := by ring
+        _ ≤ (ε / 2)⁻¹ * ‖c‖ * 2 * (↑n + 1) * ‖y‖ := by gcongr; norm_num
     exact ⟨σ' d⁻¹ • x, J, K⟩
-
-omit [RingHomIsometric σ] [CompleteSpace F] in
-/-- ToDo: Some doc that J should write. -/
-theorem approx_preimage_constant_pos [Nontrivial F] {C : ℝ}
-    (hC_nonneg : 0 ≤ C) (happrox : ∀ y : F, ∃ x : E, dist (f x) y ≤ 1 / 2 * ‖y‖ ∧ ‖x‖ ≤ C * ‖y‖) :
-    0 < C := by
-  by_contra! hC
-  have hC_zero : C = 0 := le_antisymm hC hC_nonneg
-  have hy_zero (y : F) : y = 0 := by
-    obtain ⟨x, hx_dist, hx_norm⟩ := happrox y
-    have hx_zero : x = 0 := by simpa [hC_zero] using hx_norm
-    have hy_norm : ‖y‖ ≤ 1 / 2 * ‖y‖ := by simpa [hx_zero] using hx_dist
-    have hy_norm_zero : ‖y‖ = 0 := by nlinarith [norm_nonneg y]
-    exact norm_eq_zero.mp hy_norm_zero
-  have hF : Subsingleton F := _root_.subsingleton_of_forall_eq 0 hy_zero
-  exact not_subsingleton F hF
 
 variable [CompleteSpace E]
 
@@ -245,15 +230,8 @@ any point has a preimage with controlled norm. -/
 theorem exists_preimage_norm_le (surj : Surjective f) :
     ∃ C > 0, ∀ y, ∃ x, f x = y ∧ ‖x‖ ≤ C * ‖y‖ := by
   obtain ⟨C, hC₀, hC⟩ := exists_approx_preimage_norm_le f surj
-  rcases subsingleton_or_nontrivial F with hF | hF
-  · exact ⟨1, zero_lt_one, fun y ↦ ⟨0, hF.elim _ _, by simp⟩⟩
-  · let : Nontrivial F := hF
-    obtain ⟨C, hC₀, hC⟩ := exists_approx_preimage_norm_le f surj
-    have hC_pos : 0 < C := approx_preimage_constant_pos f hC₀ hC
-    refine ⟨2 * C, by positivity, ?_⟩
-    have h := exists_preimage_norm_le_of_approx f (1 / 2) C (by norm_num) (by norm_num) hC₀ hC
-    norm_num at h
-    simpa [mul_comm] using h
+  exact ⟨_, by positivity,
+    exists_preimage_norm_le_of_approx f (1 / 2) C (by norm_num) (by norm_num) hC₀.le hC⟩
 
 /-- The Banach open mapping theorem: a surjective bounded linear map between Banach spaces is
 open. -/

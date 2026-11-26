@@ -24,7 +24,7 @@ import Mathlib.Analysis.Normed.Operator.Banach
 -- J: Beware that after the last line in references, no line-jump should be given!
 -/
 
-open Set TopologicalSpace Metric
+open Set TopologicalSpace Metric ContinuousLinearMap
 open scoped lp ENNReal NNReal
 
 @[expose] public section
@@ -38,7 +38,6 @@ variable {ι : Type*}
 namespace BanachMazur
 
 variable (𝕜) in
-open ContinuousLinearMap in
 /-- A bounded family `x : ℓ^∞(ι, X)` induces a continuous linear map `ℓ¹(ι, 𝕜) →L[𝕜] X`,
 given by `f ↦ ∑' i, f i • x i`. -/
 def map : ℓ^∞(ι, X) →L[𝕜] ℓ¹(ι, 𝕜) →L[𝕜] X :=
@@ -59,40 +58,33 @@ theorem map_single [DecidableEq ι] (x : ℓ^∞(ι, X)) (i : ι) (a : 𝕜) :
     map 𝕜 x (lp.single 1 i a) = a • x i := by
   simp [map_apply, Pi.single_apply, ite_smul, tsum_ite_eq]
 
--- ToDo: probably should make this stronger to says that it sends the ball to the ball;
--- it shouldn't be difficult using the approx and ContinuousLinearMap.exists_preimage_norm_le_of_approx
-theorem map_surjective (x : ℓ^∞(ι, X)) (hx : x ≠ 0)
-    (hd : ball 0 ‖x‖ ⊆ closure (range x)) : Function.Surjective (map 𝕜 x) := by
-  have approx (y : X) :
+/-- The **Generalized Banach-Mazur theorem**: if range x is dense in ball 0 ‖x‖,
+then map 𝕜 x maps the open unit ball of ℓ¹(ι, 𝕜) onto ball 0 ‖x‖.
+-/
+theorem map_surjective (x : ℓ^∞(ι, X))
+    (hd : ball 0 ‖x‖ ⊆ closure (range x)) : (map 𝕜 x)'' ball 0 1 = ball 0 ‖x‖ := by
+  have approx (ε : ℝ) (hε_pos : 0 < ε) (hε_lt : ε < 1) (y : X) :
       ∃ f : ℓ¹(ι, 𝕜), dist (map 𝕜 x f) y ≤ 1 / 2 * ‖y‖ ∧ ‖f‖ ≤ ‖x‖⁻¹ * ‖y‖ := by
-    -- ToDo: reescribir or revisar con mucho cuidado.
-    classical
-    rcases eq_or_ne y 0 with rfl | hy
-    · exact ⟨0, by simp⟩
-    have hx₀ : 0 < ‖x‖ := norm_pos_iff.mpr hx
-    set a : 𝕜 := ((‖y‖ / ‖x‖ : ℝ) : 𝕜)
-    have ha : ‖a‖ = ‖y‖ / ‖x‖ := by simp [a]
-    have ha₀ : a ≠ 0 := by simp [a, hy, hx]
-    have hz : a⁻¹ • y ∈ closure (range x) := hd <| by
-      sorry
-    obtain ⟨i, hi⟩ := Metric.mem_closure_range_iff.mp hz (‖x‖ / 2) (by positivity)
-    refine ⟨a • lp.single 1 i 1, ?_, ?_⟩
-    · calc dist (map 𝕜 x (a • lp.single 1 i 1)) y = dist (a • x i) (a • a⁻¹ • y) := by
-            simp [smul_inv_smul₀ ha₀]
-        _ = ‖a‖ * dist (a⁻¹ • y) (x i) := by rw [dist_smul₀, dist_comm]
-        _ ≤ ‖y‖ / ‖x‖ * (‖x‖ / 2) := by rw [ha]; gcongr
-        _ = 1 / 2 * ‖y‖ := by field_simp
-    · simp [norm_smul, ha, div_eq_inv_mul]
-  obtain ⟨C, -, hC⟩ :=
-    ContinuousLinearMap.exists_preimage_norm_le_of_approx (map 𝕜 x) (1 / 2) ‖x‖⁻¹
-      (by norm_num) (by norm_num) (by positivity) approx
-  exact fun y ↦ (hC y).imp fun _ ↦ And.left
+    sorry
+  sorry
 
-/-- The Banach-Mazur theorem: If `X` is a separable Banach space, then there exists an
-operator `ℓ¹ →L[𝕜] X` sending the unit ball to the unit ball. -/
+/-- The **Classical Banach-Mazur theorem**: If `X` is a separable Banach space, then there exists an
+operator `ℓ¹ →L[𝕜] X` sending the unit ball onto the unit ball. -/
 theorem exists_surjective_of_separableSpace [SeparableSpace X] :
     ∃ T : ℓ¹(ℕ, 𝕜) →L[𝕜] X, T '' ball 0 1 = ball 0 1 := by
-  sorry
+  rcases subsingleton_or_nontrivial X with hX | hX
+  · exact ⟨0, by simp [Subsingleton.eq_univ_of_nonempty]⟩
+  · -- we will use map 𝕜 x, where x is a dense subset of ball 0 1
+    have : Nonempty (ball (0 : X) 1) := ⟨⟨0, mem_ball_self one_pos⟩⟩
+    obtain ⟨v, hv⟩ := exists_dense_seq (ball (0 : X) 1)
+    have hle (n : ℕ) : ‖(v n : X)‖ ≤ 1 := (mem_ball_zero_iff.1 (v n).2).le
+    let x : ℓ^∞(ℕ, X) := ⟨fun n ↦ v n, memℓp_infty ⟨1, forall_mem_range.2 hle⟩⟩
+    have x_ball : ball 0 1 ⊆ closure (range x) := by
+      have := Subtype.dense_iff.1 hv
+      rwa [← range_comp] at this
+    have x_norm : ‖x‖ = 1 := by
+      sorry
+    exact ⟨map 𝕜 x, x_norm ▸ map_surjective (𝕜 := 𝕜) x (x_norm ▸ x_ball)⟩
 
 -- Preguntas: usar lp.dualPairing o nueva API. Dónde colocar este archivo y cómo llamarlo. Refactor de Banach.lean. Cómo organizar los commits.
 -- ToDo: escribir docstring inicial siguiendo el estilo de mathlib; revisar guía de estilo de mathlib y comprobar que el código la cumple; comprobar nombres según mathlib
