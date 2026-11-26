@@ -149,7 +149,8 @@ variable [CompleteSpace F]
 namespace ContinuousLinearMap
 
 include σ' in
-/-- First step of the proof of the Banach open mapping theorem (using completeness of `F`):
+/-- ToDo: we also have to update this!
+First step of the proof of the Banach open mapping theorem (using completeness of `F`):
 by Baire's theorem, there exists a ball in `E` whose image closure has nonempty interior.
 Rescaling everything, it follows that any `y ∈ F` is arbitrarily well approached by
 images of elements of norm at most `C * ‖y‖`.
@@ -219,7 +220,7 @@ theorem exists_approx_preimage_norm_le (surj : Surjective f) :
     exact ⟨σ' d⁻¹ • x, J, K⟩
 
 omit [RingHomIsometric σ] [CompleteSpace F] in
-/-- Some doc that J should write. -/
+/-- ToDo: Some doc that J should write. -/
 theorem approx_preimage_constant_pos [Nontrivial F] {C : ℝ}
     (hC_nonneg : 0 ≤ C) (happrox : ∀ y : F, ∃ x : E, dist (f x) y ≤ 1 / 2 * ‖y‖ ∧ ‖x‖ ≤ C * ‖y‖) :
     0 < C := by
