@@ -25,10 +25,7 @@ import Mathlib.Analysis.Normed.Operator.Banach
 -/
 
 open Set TopologicalSpace Metric ContinuousLinearMap
--- J: I'm adding Pointwise to be able to write `(‖x‖ : 𝕜) • ball (0 : X) 1`. We
--- needd to do this instead of `ball (0 : X) (‖x‖ : 𝕜)` because for `x = 0` the latter
--- ''ball'' would be `∅`, instead of `{0}`.
-open scoped lp ENNReal NNReal Pointwise
+open scoped lp ENNReal NNReal
 
 @[expose] public section
 
@@ -66,31 +63,36 @@ theorem norm_map_apply (x : ℓ^∞(ι, X)) : ‖map 𝕜 x‖ = ‖x‖ := by
   refine (norm_map_apply_le x).antisymm <| lp.norm_le_of_forall_le (norm_nonneg _) fun i ↦ ?_
   simpa using (map 𝕜 x).unit_le_opNorm (lp.single 1 i 1) (by simp [lp.norm_single])
 
-/-- The **Generalized Banach-Mazur theorem**: if `range x` is dense in `‖x‖ • ball (0 : X) 1`,
-then `map 𝕜 x` maps the open unit ball of `ℓ¹(ι, 𝕜)` onto `‖x‖ ball 0 1` in `X`. -/
-theorem map_image_ball (x : ℓ^∞(ι, X))
-    (hd : (‖x‖ : 𝕜) • ball (0 : X) 1 ⊆ closure (range x)) :
-    (map 𝕜 x)'' ball 0 1 = (‖x‖ : 𝕜) • ball (0 : X) 1 := by
+/-- The **Generalized Banach-Mazur theorem**: if `x ≠ 0` and `range x` is dense in
+`ball (0 : X) ‖x‖`, then `map 𝕜 x` maps the open unit ball of `ℓ¹(ι, 𝕜)` onto `ball 0 ‖x‖`
+in `X`. -/
+theorem map_image_ball (x : ℓ^∞(ι, X)) (hx : x ≠ 0)
+    (hd : ball (0 : X) ‖x‖ ⊆ closure (range x)) :
+    (map 𝕜 x)'' ball 0 1 = ball 0 ‖x‖ := by
   classical
   -- J : Mathlib/Basic/Logic/Basic.lean, line 246, explicitely says that if some proof needs
   -- decidability, classical is prefered above the [DecidableEq ι] we would need here
-  -- (to use lp.single). Also I've omitted the second rcases bullet since it seems Mathlib
-  -- would prefer that.
-  rcases eq_or_ne x 0 with rfl | hx
-  · simp [Set.singleton_zero]
-  have : (map 𝕜 x)'' ball 0 1 ⊆ (‖x‖ : 𝕜) • ball (0 : X) 1 := by
+  -- (to use lp.single).
+  have : (map 𝕜 x)'' ball 0 1 ⊆ ball 0 ‖x‖ := by
     rintro _ ⟨z, hz, rfl⟩
-    rw [smul_unitBall (by simpa using hx), RCLike.norm_ofReal, abs_norm, mem_ball_zero_iff]
+    rw [mem_ball_zero_iff]
     calc
       ‖map 𝕜 x z‖ ≤ ‖x‖ * ‖z‖ := (map 𝕜 x).le_of_opNorm_le (norm_map_apply_le x) z
       _ < ‖x‖ := mul_lt_of_lt_one_right (norm_pos_iff.mpr hx) (mem_ball_zero_iff.mp hz)
   refine Set.Subset.antisymm this ?_
+  have hd' : closedBall (0 : X) ‖x‖ ⊆ closure (range x) := by
+    let : NormedSpace ℝ X := .restrictScalars ℝ 𝕜 X
+    rw [← closure_ball 0 (norm_ne_zero_iff.2 hx)]
+    exact closure_minimal hd isClosed_closure
   have approx (ε : ℝ) (hε_pos : 0 < ε) (y : X) :
       ∃ z : ℓ¹(ι, 𝕜), dist (map 𝕜 x z) y ≤ ε * ‖y‖ ∧ ‖z‖ ≤ ‖x‖⁻¹ * ‖y‖ := by
     rcases eq_or_ne y 0 with rfl | hy
     · exact ⟨0, by simp⟩
     · let w : X := (‖y‖⁻¹ * ‖x‖ : 𝕜) • y
-      obtain ⟨i, hi⟩ : ∃ i : ι, ‖x i - w‖ < ε * ‖x‖ := by sorry
+      have hw : w ∈ closure (range x) := hd' <| by
+        simp [w, norm_smul, mul_right_comm _ ‖x‖, hy]
+      obtain ⟨i, hi⟩ := mem_closure_range_iff.1 hw _ (mul_pos hε_pos (norm_pos_iff.2 hx))
+      rw [dist_eq_norm'] at hi
       refine ⟨lp.single 1 i (‖x‖⁻¹ * ‖y‖ : 𝕜), ?_, ?_⟩
       · rw [map_single, dist_eq_norm]
         apply (mul_le_mul_iff_right₀
@@ -105,9 +107,7 @@ theorem map_image_ball (x : ℓ^∞(ι, X))
   intro y hy
   obtain ⟨n, hn⟩ : ∃ n : ℕ, (1 / 2 : ℝ) ^ n < 1 - ‖x‖⁻¹ * ‖y‖ := by
     apply exists_pow_lt_of_lt_one ?_ (by norm_num)
-    have : ‖y‖ < ‖x‖ := by
-      refine mem_ball_zero_iff.mp ?_
-      simpa [smul_unitBall, hx] using hy
+    have : ‖y‖ < ‖x‖ := mem_ball_zero_iff.mp hy
     rwa [sub_pos, inv_mul_lt_iff₀ (norm_pos_iff.mpr hx), mul_one]
   have hn_lt : (1 / 2 : ℝ) ^ n < 1 := hn.trans_le (sub_le_self _ (by positivity))
   obtain ⟨z, hz, hz_norm⟩ := (map 𝕜 x).exists_preimage_norm_le_of_approx
@@ -144,9 +144,8 @@ theorem exists_surjective_of_separableSpace [SeparableSpace X] :
           (fun n => mem_closedBall_zero_iff.2 (lp.norm_apply_le_norm ENNReal.top_ne_zero x n))
       obtain ⟨y, hy⟩ := exists_norm_eq X zero_le_one
       simpa [hy] using this (mem_closedBall_zero_iff.2 hy.le)
-    have x_ball : (‖x‖ : 𝕜) • ball (0 : X) 1 ⊆ closure (range x) := by
-      simpa [x_norm] using hd
-    exact ⟨map 𝕜 x, by simpa [x_norm] using map_image_ball x x_ball⟩
+    have hx : x ≠ 0 := norm_ne_zero_iff.1 (by simp [x_norm])
+    exact ⟨map 𝕜 x, by simpa [x_norm] using map_image_ball x hx (by rwa [x_norm])⟩
 
 -- Preguntas: usar lp.dualPairing o nueva API. Dónde colocar este archivo y cómo llamarlo.
 -- Refactor de Banach.lean. Cómo organizar los commits.
