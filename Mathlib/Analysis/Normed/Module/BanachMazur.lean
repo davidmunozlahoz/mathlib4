@@ -11,17 +11,41 @@ public import Mathlib.Analysis.Normed.Operator.Mul
 import Mathlib.Analysis.Normed.Operator.Banach
 
 /-!
-# The Banach-Mazur theorem
+# The classical and generalized Banach-Mazur theorems
 
 ## Overview
 
+Given a real or complex Banach space `X`, every bounded family `x : ℓ^∞(ι, X)` defines
+a canonical continuous linear map `BanachMazur.map 𝕜 x` from `ℓ¹(ι, 𝕜)` to `X` by means
+of `a ↦ ∑' i, a i • x i`. If `x ≠ 0` and the closure of its range contains the open ball
+`ball (0 : X) ‖x‖`, then `BanachMazur.map 𝕜 x` sends the open unit ball `ball 0 1` onto
+`ball (0 : X) ‖x‖`.
+
+As a consequence, every separable real or complex Banach space `X` is the image of `ℓ¹(ℕ, 𝕜)`
+under a continuous linear map that, moreover, sends the open unit ball `ball (0 : ℓ¹(ℕ, 𝕜)) 1`
+onto the open unit ball `ball (0 : X) 1`.
+
 ## Main definitions
+
+* `BanachMazur.map`: Given a bounded family `x : ℓ^∞(ι, X)`, constructs the continuous
+  linear operator from `ℓ¹(ι, 𝕜)` to `X` given by `a ↦ ∑' i, a i • x i`.
 
 ## Main results
 
+* `BanachMazur.map_image_ball`: The generalized Banach-Mazur theorem, stating that if
+  `x ≠ 0` and `ball (0 : X) ‖x‖ ⊆ closure (range x)`, then `BanachMazur.map 𝕜 x` maps
+  `ball 0 1` onto `ball (0 : X) ‖x‖`.
+* `BanachMazur.exists_surjective_of_separableSpace`: The classical Banach-Mazur theorem,
+  stating that every separable real or complex Banach space `X` is the image of `ℓ¹(ℕ, 𝕜)`
+  under a continuous linear map sending `ball 0 1` onto `ball (0 : X) 1`.
+
 ## References
 
--- J: Beware that after the last line in references, no line-jump should be given!
+* [Albiac, Fernando. and Kalton, Nigel J., Topics in Banach Space Theory][Albiac_Kalton_2016],
+  Theorem 2.3.1.
+* We could cite Mazur's original work for **aurapoints?**
+* **For the generalization,** we have not really used any reference but just generalized what Albiac
+  and Kalton expose. R?
 -/
 
 open Set TopologicalSpace Metric ContinuousLinearMap
@@ -63,16 +87,13 @@ theorem norm_map_apply (x : ℓ^∞(ι, X)) : ‖map 𝕜 x‖ = ‖x‖ := by
   refine (norm_map_apply_le x).antisymm <| lp.norm_le_of_forall_le (norm_nonneg _) fun i ↦ ?_
   simpa using (map 𝕜 x).unit_le_opNorm (lp.single 1 i 1) (by simp [lp.norm_single])
 
-/-- The **Generalized Banach-Mazur theorem**: if `x ≠ 0` and `range x` is dense in
+/-- The **generalized Banach-Mazur theorem**: if `x ≠ 0` and `range x` is dense in
 `ball (0 : X) ‖x‖`, then `map 𝕜 x` maps the open unit ball of `ℓ¹(ι, 𝕜)` onto `ball 0 ‖x‖`
 in `X`. -/
 theorem map_image_ball (x : ℓ^∞(ι, X)) (hx : x ≠ 0)
     (hd : ball (0 : X) ‖x‖ ⊆ closure (range x)) :
     (map 𝕜 x)'' ball 0 1 = ball 0 ‖x‖ := by
   classical
-  -- J : Mathlib/Basic/Logic/Basic.lean, line 246, explicitely says that if some proof needs
-  -- decidability, classical is prefered above the [DecidableEq ι] we would need here
-  -- (to use lp.single).
   have : (map 𝕜 x)'' ball 0 1 ⊆ ball 0 ‖x‖ := by
     rintro _ ⟨z, hz, rfl⟩
     rw [mem_ball_zero_iff]
@@ -119,7 +140,7 @@ theorem map_image_ball (x : ℓ^∞(ι, X)) (hx : x ≠ 0)
     _ = (‖x‖⁻¹ * ‖y‖) / (1 - (1 / 2 : ℝ) ^ n) := div_mul_eq_mul_div _ _ _
     _ < 1 := (div_lt_one (sub_pos.mpr hn_lt)).2 (lt_sub_comm.mp hn)
 
-/-- The **Classical Banach-Mazur theorem**: If `X` is a separable Banach space,
+/-- The **classical Banach-Mazur theorem**: If `X` is a separable Banach space,
 then there exists an operator `ℓ¹ →L[𝕜] X` sending the unit ball onto the unit ball. -/
 theorem exists_surjective_of_separableSpace [SeparableSpace X] :
     ∃ T : ℓ¹(ℕ, 𝕜) →L[𝕜] X, T '' ball 0 1 = ball 0 1 := by

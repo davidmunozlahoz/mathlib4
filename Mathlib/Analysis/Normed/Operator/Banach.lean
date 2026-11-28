@@ -149,8 +149,7 @@ variable [CompleteSpace F]
 namespace ContinuousLinearMap
 
 include σ' in
-/--
-First step of the proof of the Banach open mapping theorem (using completeness of `F`):
+/-- First step of the proof of the Banach open mapping theorem (using completeness of `F`):
 by Baire's theorem, there exists a ball in `E` whose image closure has nonempty interior.
 Rescaling everything, it follows that any `y ∈ F` is arbitrarily well approached by
 images of elements of norm at most `C * ‖y‖`.
