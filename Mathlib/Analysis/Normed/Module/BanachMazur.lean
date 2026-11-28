@@ -61,9 +61,14 @@ theorem map_single [DecidableEq ι] (x : ℓ^∞(ι, X)) (i : ι) (a : 𝕜) :
     map 𝕜 x (lp.single 1 i a) = a • x i := by
   simp [map_apply, Pi.single_apply, ite_smul, tsum_ite_eq]
 
+theorem norm_map_apply (x : ℓ^∞(ι, X)) : ‖map 𝕜 x‖ = ‖x‖ := by
+  classical
+  refine (norm_map_apply_le x).antisymm <| lp.norm_le_of_forall_le (norm_nonneg _) fun i ↦ ?_
+  simpa using (map 𝕜 x).unit_le_opNorm (lp.single 1 i 1) (by simp [lp.norm_single])
+
 /-- The **Generalized Banach-Mazur theorem**: if `range x` is dense in `‖x‖ • ball (0 : X) 1`,
 then `map 𝕜 x` maps the open unit ball of `ℓ¹(ι, 𝕜)` onto `‖x‖ ball 0 1` in `X`. -/
-theorem map_surjective (x : ℓ^∞(ι, X))
+theorem map_image_ball (x : ℓ^∞(ι, X))
     (hd : (‖x‖ : 𝕜) • ball (0 : X) 1 ⊆ closure (range x)) :
     (map 𝕜 x)'' ball 0 1 = (‖x‖ : 𝕜) • ball (0 : X) 1 := by
   classical
@@ -125,12 +130,23 @@ theorem exists_surjective_of_separableSpace [SeparableSpace X] :
     obtain ⟨v, hv⟩ := exists_dense_seq (ball (0 : X) 1)
     have hle (n : ℕ) : ‖(v n : X)‖ ≤ 1 := (mem_ball_zero_iff.1 (v n).2).le
     let x : ℓ^∞(ℕ, X) := ⟨fun n ↦ v n, memℓp_infty ⟨1, forall_mem_range.2 hle⟩⟩
-    have x_ball : ball 0 1 ⊆ closure (range x) := by
+    have hd : ball (0 : X) 1 ⊆ closure (range x) := by
       have := Subtype.dense_iff.1 hv
       rwa [← range_comp] at this
     have x_norm : ‖x‖ = 1 := by
-      sorry
-    exact ⟨map 𝕜 x, x_norm ▸ map_surjective (𝕜 := 𝕜) x (x_norm ▸ x_ball)⟩
+      refine (lp.norm_le_of_forall_le zero_le_one hle).antisymm ?_
+      let : NormedSpace ℝ X := .restrictScalars ℝ 𝕜 X
+      have : closedBall (0 : X) 1 ⊆ closedBall 0 ‖x‖ := by
+        rw [← closure_ball (0 : X) one_ne_zero]
+        refine closure_minimal (subset_trans hd ?_) isClosed_closedBall
+        refine closure_minimal ?_ isClosed_closedBall
+        exact range_subset_iff.2
+          (fun n => mem_closedBall_zero_iff.2 (lp.norm_apply_le_norm ENNReal.top_ne_zero x n))
+      obtain ⟨y, hy⟩ := exists_norm_eq X zero_le_one
+      simpa [hy] using this (mem_closedBall_zero_iff.2 hy.le)
+    have x_ball : (‖x‖ : 𝕜) • ball (0 : X) 1 ⊆ closure (range x) := by
+      simpa [x_norm] using hd
+    exact ⟨map 𝕜 x, by simpa [x_norm] using map_image_ball x x_ball⟩
 
 -- Preguntas: usar lp.dualPairing o nueva API. Dónde colocar este archivo y cómo llamarlo.
 -- Refactor de Banach.lean. Cómo organizar los commits.
